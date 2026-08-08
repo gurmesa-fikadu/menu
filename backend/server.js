@@ -37,7 +37,10 @@ app.use(
 );
 
 // ── Helper: map DB row → dish shape the frontend expects ──
-function mapDish(row) {
+function mapDish(row, req) {
+  // Dynamically detect server domain (e.g. https://your-app.onrender.com)
+  const baseUrl = req ? `${req.protocol}://${req.get('host')}` : '';
+  
   return {
     id: row.id,
     name: row.name,
@@ -46,12 +49,12 @@ function mapDish(row) {
     price: Number(row.price),
     portion: row.portion,
     image: row.image_url
-  ? `http://localhost:4000${encodeURI(row.image_url)}`
-  : "",
+      ? (row.image_url.startsWith('http') ? row.image_url : `${baseUrl}${encodeURI(row.image_url)}`)
+      : "",
     gallery:
-    typeof row.gallery === "string"
-    ? JSON.parse(row.gallery || "[]")
-    : row.gallery || [],
+      typeof row.gallery === "string"
+      ? JSON.parse(row.gallery || "[]")
+      : row.gallery || [],
     rating: Number(row.rating),
     prepTime: row.prep_time_minutes,
     restaurant: row.restaurant,
@@ -59,6 +62,11 @@ function mapDish(row) {
     description: row.description,
   }
 }
+
+// ════════ ROOT ROUTE ════════
+app.get('/', (req, res) => {
+  res.send('Habesha Bites API is up and running on Render!');
+});
 
 // ════════ CATEGORIES ════════
 
@@ -98,7 +106,7 @@ app.get('/api/dishes', async (req, res) => {
     sql += ' ORDER BY d.id'
 
     const [rows] = await pool.query(sql, params)
-    res.json(rows.map(mapDish))
+    res.json(rows.map(row => mapDish(row, req)))
   } catch (err) {
     res.status(500).json({ error: err.message })
   }
@@ -115,7 +123,7 @@ app.get('/api/dishes/:id', async (req, res) => {
       [req.params.id]
     )
     if (rows.length === 0) return res.status(404).json({ error: 'Dish not found' })
-    res.json(mapDish(rows[0]))
+    res.json(mapDish(rows[0], req))
   } catch (err) {
     res.status(500).json({ error: err.message })
   }
@@ -465,3 +473,4 @@ const PORT = process.env.PORT || 4000
 app.listen(PORT, () => {
   console.log(`Habesha Bites API running on http://localhost:${PORT}`)
 })
+

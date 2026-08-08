@@ -259,10 +259,14 @@
 // src/api/client.js
 
 // Dynamic API URL for Vite / Vercel deployment with fallback to live Render backend
-const LIVE_BACKEND_URL = "https://restaurant-backend-lrk6.onrender.com/api";
-const BASE_URL = import.meta.env.VITE_API_URL 
-  ? `${import.meta.env.VITE_API_URL.replace(/\/$/, '')}/api`
-  : LIVE_BACKEND_URL;
+const LIVE_BACKEND_URL = "https://restaurant-backend-lrk6.onrender.com";
+
+// Get raw env variable or fallback
+const rawUrl = import.meta.env.VITE_API_URL || LIVE_BACKEND_URL;
+
+// Clean stray brackets/quotes, strip trailing slashes, and format /api path safely
+const cleanUrl = String(rawUrl).replace(/[\[\]'"]/g, '').replace(/\/$/, '');
+const BASE_URL = cleanUrl.endsWith('/api') ? cleanUrl : `${cleanUrl}/api`;
 
 // ===============================
 // API REQUEST HELPER

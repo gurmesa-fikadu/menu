@@ -18,84 +18,53 @@ import BottomNav from './components/BottomNav.jsx'
 
 import { dishes as seedDishes } from './data/mockData.js'
 
+// ── API BASE URL (Vercel Env Variable or Render Production Backend) ──
+const API_BASE = import.meta.env.VITE_API_URL || 'https://restaurant-backend-lrk6.onrender.com'
 
 export default function App() {
 
-
-  const [screen,setScreen] = useState('home')
-
+  const [screen, setScreen] = useState('home')
 
   // ADMIN
-  const [adminPage,setAdminPage] = useState('dashboard')
+  const [adminPage, setAdminPage] = useState('dashboard')
 
-
-  const [adminLogged,setAdminLogged] = useState(
-  Boolean(localStorage.getItem("admin"))
+  const [adminLogged, setAdminLogged] = useState(
+    Boolean(localStorage.getItem("admin"))
   )
 
+  const [selectedDish, setSelectedDish] = useState(null)
 
-
-  const [selectedDish,setSelectedDish] = useState(null)
-
-
-  const [cart,setCart] = useState([])
-
+  const [cart, setCart] = useState([])
 
   const [dishes, setDishes] = useState([])
 
+  const [categories, setCategories] = useState([])
 
-  const [categories,setCategories] = useState([])
-
-const loadDishes = async () => {
-  try {
-    const res = await fetch(
-      'http://localhost:4000/api/dishes'
-    )
-
-    const data = await res.json()
-
-    setDishes(data)
-
-  } catch(err){
-
-    console.error(
-      "Loading dishes failed:",
-      err
-    )
-
+  const loadDishes = async () => {
+    try {
+      const res = await fetch(`${API_BASE}/api/dishes`)
+      const data = await res.json()
+      setDishes(data)
+    } catch(err){
+      console.error("Loading dishes failed:", err)
+    }
   }
-}
 
-useEffect(() => {
-  loadDishes()
-}, [])
+  useEffect(() => {
+    loadDishes()
+  }, [])
 
   // LOAD CATEGORIES
-
-  useEffect(()=>{
-
-
-    fetch('http://localhost:4000/api/categories')
-
-    .then(res=>res.json())
-
-    .then(data=>{
-
-      setCategories(data)
-
-    })
-
-    .catch(err=>{
-
-      console.error(
-        "Category loading error:",
-        err
-      )
-
-    })
-
-
-  },[])
+  useEffect(() => {
+    fetch(`${API_BASE}/api/categories`)
+      .then(res => res.json())
+      .then(data => {
+        setCategories(data)
+      })
+      .catch(err => {
+        console.error("Category loading error:", err)
+      })
+  }, [])
 
 
 

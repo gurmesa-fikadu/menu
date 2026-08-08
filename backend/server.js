@@ -38,9 +38,26 @@ app.use(
 
 // ── Helper: map DB row → dish shape the frontend expects ──
 function mapDish(row, req) {
-  // Dynamically detect server domain (e.g. https://your-app.onrender.com)
-  const baseUrl = req ? `${req.protocol}://${req.get('host')}` : '';
-  
+  // Respect Render's reverse proxy header for HTTPS detection
+  const protocol = req && req.get('x-forwarded-proto') 
+    ? req.get('x-forwarded-proto') 
+    : (req ? req.protocol : 'https');
+
+  const host = req ? req.get('host') : 'restaurant-backend-lrk6.onrender.com';
+  const baseUrl = `${protocol}://${host}`;
+
+  // Handle absolute vs relative image URLs and force HTTPS
+  let imageUrl = "";
+  if (row.image_url) {
+    if (row.image_url.startsWith('http://')) {
+      imageUrl = row.image_url.replace('http://', 'https://');
+    } else if (row.image_url.startsWith('https://')) {
+      imageUrl = row.image_url;
+    } else {
+      imageUrl = `${baseUrl}${encodeURI(row.image_url)}`;
+    }
+  }
+
   return {
     id: row.id,
     name: row.name,
@@ -48,9 +65,7 @@ function mapDish(row, req) {
     categoryId: row.category_id,
     price: Number(row.price),
     portion: row.portion,
-    image: row.image_url
-      ? (row.image_url.startsWith('http') ? row.image_url : `${baseUrl}${encodeURI(row.image_url)}`)
-      : "",
+    image: imageUrl,
     gallery:
       typeof row.gallery === "string"
       ? JSON.parse(row.gallery || "[]")
@@ -61,7 +76,7 @@ function mapDish(row, req) {
     available: Boolean(row.available),
     description: row.description,
   }
-}
+}S
 
 // ════════ ROOT ROUTE ════════
 app.get('/', (req, res) => {

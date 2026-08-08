@@ -1,60 +1,46 @@
 // ═══════════════════════════════════════════════════════
 // Habesha Bites — Express server
-// Run: npm install && npm start
-// (Make sure MySQL is running and schema.sql + seed.sql are imported first.)
 // ═══════════════════════════════════════════════════════
 
 const express = require('express')
 const cors = require('cors')
 const pool = require('./db')
-const multer = require("multer");
-const path = require("path");
+const multer = require("multer")
+const path = require("path")
 
 const storage = multer.diskStorage({
-
-  destination:(req,file,cb)=>{
-    cb(null,"uploads/");
+  destination: (req, file, cb) => {
+    cb(null, "uploads/")
   },
-
-  filename:(req,file,cb)=>{
-    cb(null,Date.now()+"-"+file.originalname);
+  filename: (req, file, cb) => {
+    cb(null, Date.now() + "-" + file.originalname)
   }
+})
 
-});
-
-const upload = multer({
-  storage
-});
+const upload = multer({ storage })
 
 const app = express()
 app.use(cors())
 app.use(express.json())
-app.use("/uploads", express.static("uploads"));
-
-app.use(
-  "/uploads",
-  express.static("uploads")
-);
+app.use("/uploads", express.static(path.join(__dirname, "uploads")))
 
 // ── Helper: map DB row → dish shape the frontend expects ──
 function mapDish(row, req) {
-  // Respect Render's reverse proxy header for HTTPS detection
   const protocol = req && req.get('x-forwarded-proto') 
     ? req.get('x-forwarded-proto') 
-    : (req ? req.protocol : 'https');
+    : (req ? req.protocol : 'https')
 
-  const host = req ? req.get('host') : 'restaurant-backend-lrk6.onrender.com';
-  const baseUrl = `${protocol}://${host}`;
+  const host = req ? req.get('host') : 'restaurant-backend-lrk6.onrender.com'
+  const baseUrl = `${protocol}://${host}`
 
-  // Handle absolute vs relative image URLs and force HTTPS
-  let imageUrl = "";
+  let imageUrl = ""
   if (row.image_url) {
     if (row.image_url.startsWith('http://')) {
-      imageUrl = row.image_url.replace('http://', 'https://');
+      imageUrl = row.image_url.replace('http://', 'https://')
     } else if (row.image_url.startsWith('https://')) {
-      imageUrl = row.image_url;
+      imageUrl = row.image_url
     } else {
-      imageUrl = `${baseUrl}${encodeURI(row.image_url)}`;
+      imageUrl = `${baseUrl}${encodeURI(row.image_url)}`
     }
   }
 
@@ -76,7 +62,7 @@ function mapDish(row, req) {
     available: Boolean(row.available),
     description: row.description,
   }
-}S
+}
 
 // ════════ ROOT ROUTE ════════
 app.get('/', (req, res) => {
@@ -85,7 +71,6 @@ app.get('/', (req, res) => {
 
 // ════════ CATEGORIES ════════
 
-// GET /api/categories
 app.get('/api/categories', async (req, res) => {
   try {
     const [rows] = await pool.query('SELECT * FROM categories ORDER BY id')
@@ -97,7 +82,6 @@ app.get('/api/categories', async (req, res) => {
 
 // ════════ DISHES ════════
 
-// GET /api/dishes — optional ?category= filter, only available by default
 app.get('/api/dishes', async (req, res) => {
   try {
     const { category } = req.query
@@ -127,7 +111,6 @@ app.get('/api/dishes', async (req, res) => {
   }
 })
 
-// GET /api/dishes/:id
 app.get('/api/dishes/:id', async (req, res) => {
   try {
     const [rows] = await pool.query(
@@ -144,110 +127,45 @@ app.get('/api/dishes/:id', async (req, res) => {
   }
 })
 
-// POST /api/dishes — admin: add a new dish
-app.post(
-  "/api/dishes",
-  upload.single("image"),
-  async (req, res) => { console.log(req.file);
-console.log(req.body);
+app.post("/api/dishes", upload.single("image"), async (req, res) => {
   try {
     const {
-  name,
-  category_id,
-  description,
-  price,
-  portion,
-  rating,
-  prep_time_minutes,
-  restaurant,
-  available,
-  gallery
-} = req.body;
+      name,
+      category_id,
+      description,
+      price,
+      portion,
+      rating,
+      prep_time_minutes,
+      restaurant,
+      available
+    } = req.body;
 
-const image_url = req.file
-  ? "/uploads/" + req.file.filename
-  : null;
+    const image_url = req.file ? "/uploads/" + req.file.filename : null;
 
     const [result] = await pool.query(
-  `INSERT INTO dishes
-  (
-    category_id,
-    name,
-    description,
-    price,
-    \`portion\`,
-    image_url,
-    gallery,
-    rating,
-    prep_time_minutes,
-    restaurant,
-    available
-  )
-  VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-  [
-    category_id || null,
-    name,
-    description || "",
-    Number(price),
-    portion || "",
-    image_url,
-    JSON.stringify([]),
-    Number(rating || 0),
-    Number(prep_time_minutes || 0),
-    restaurant || "Habesha Bites Kitchen",
-    available ? 1 : 0
-  ]
-);
+      `INSERT INTO dishes (category_id, name, description, price, \`portion\`, image_url, gallery, rating, prep_time_minutes, restaurant, available)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [
+        category_id || null,
+        name,
+        description || "",
+        Number(price),
+        portion || "",
+        image_url,
+        JSON.stringify([]),
+        Number(rating || 0),
+        Number(prep_time_minutes || 0),
+        restaurant || "Habesha Bites Kitchen",
+        available ? 1 : 0
+      ]
+    );
     res.status(201).json({ id: result.insertId, message: 'Dish added' })
   } catch (err) {
     res.status(500).json({ error: err.message })
   }
 })
 
-// DELETE FOOD
-// DELETE DISH
-app.delete("/api/dishes/:id", async (req, res) => {
-
-  try {
-
-    const { id } = req.params;
-
-
-    // delete related order items first
-    await pool.query(
-      "DELETE FROM order_items WHERE dish_id=?",
-      [id]
-    );
-
-
-    // delete dish
-    await pool.query(
-      "DELETE FROM dishes WHERE id=?",
-      [id]
-    );
-
-
-    res.json({
-      success:true,
-      message:"Dish deleted successfully"
-    });
-
-
-  } catch(error) {
-
-    console.error("DELETE DISH ERROR:", error);
-
-
-    res.status(500).json({
-      success:false,
-      error:error.message
-    });
-
-  }
-
-});
-
-// PUT /api/dishes/:id — admin: update any dish field (price, image, name, etc.)
 app.put('/api/dishes/:id', async (req, res) => {
   try {
     const allowed = [
@@ -259,9 +177,7 @@ app.put('/api/dishes/:id', async (req, res) => {
     for (const key of allowed) {
       if (req.body[key] !== undefined) {
         updates.push(`${key} = ?`)
-        params.push(
-          key === 'gallery' ? JSON.stringify(req.body[key]) : req.body[key]
-        )
+        params.push(key === 'gallery' ? JSON.stringify(req.body[key]) : req.body[key])
       }
     }
     if (updates.length === 0) {
@@ -276,7 +192,6 @@ app.put('/api/dishes/:id', async (req, res) => {
   }
 })
 
-// PATCH /api/dishes/:id/availability — admin: hide/show a dish (toggle cart)
 app.patch('/api/dishes/:id/availability', async (req, res) => {
   try {
     const { available } = req.body
@@ -287,19 +202,23 @@ app.patch('/api/dishes/:id/availability', async (req, res) => {
   }
 })
 
-// DELETE /api/dishes/:id — admin: remove a dish
-app.delete('/api/dishes/:id', async (req, res) => {
+app.delete("/api/dishes/:id", async (req, res) => {
   try {
-    await pool.query('DELETE FROM dishes WHERE id = ?', [req.params.id])
-    res.json({ message: 'Dish deleted' })
-  } catch (err) {
-    res.status(500).json({ error: err.message })
+    const { id } = req.params;
+
+    // Remove foreign key dependencies first
+    await pool.query("DELETE FROM order_items WHERE dish_id=?", [id]);
+    await pool.query("DELETE FROM dishes WHERE id=?", [id]);
+
+    res.json({ success: true, message: "Dish deleted successfully" });
+  } catch (error) {
+    console.error("DELETE DISH ERROR:", error);
+    res.status(500).json({ success: false, error: error.message });
   }
-})
+});
 
 // ════════ ORDERS ════════
 
-// GET /api/orders — admin: list all orders
 app.get('/api/orders', async (req, res) => {
   try {
     const [orders] = await pool.query('SELECT * FROM orders ORDER BY created_at DESC')
@@ -320,7 +239,6 @@ app.get('/api/orders', async (req, res) => {
   }
 })
 
-// POST /api/orders — create a new order
 app.post('/api/orders', async (req, res) => {
   const conn = await pool.getConnection()
   try {
@@ -353,7 +271,6 @@ app.post('/api/orders', async (req, res) => {
   }
 })
 
-// PATCH /api/orders/:id/status — admin: update order status
 app.patch('/api/orders/:id/status', async (req, res) => {
   try {
     const { status } = req.body
@@ -366,7 +283,6 @@ app.patch('/api/orders/:id/status', async (req, res) => {
 
 // ════════ USERS ════════
 
-// POST /api/users — create or update a user (simple, no auth here)
 app.post('/api/users', async (req, res) => {
   try {
     const { name, email, delivery_address } = req.body
@@ -389,9 +305,8 @@ app.post('/api/users', async (req, res) => {
   }
 })
 
-// ════════ ADMIN STATS ════════
+// ════════ ADMIN STATS & AUTH ════════
 
-// GET /api/stats — dashboard summary
 app.get('/api/stats', async (req, res) => {
   try {
     const [revenueRow] = await pool.query('SELECT COALESCE(SUM(total), 0) AS total FROM orders')
@@ -412,80 +327,36 @@ app.get('/api/stats', async (req, res) => {
   }
 })
 
-// ════════ Start server ════════
-
-// ════════ ADMIN LOGIN ════════
-
-app.post('/api/admin/login', async(req,res)=>{
-
-  try{
-
-    const {username,password}=req.body
-
-    const [rows]=await pool.query(
+app.post('/api/admin/login', async (req, res) => {
+  try {
+    const { username, password } = req.body
+    const [rows] = await pool.query(
       "SELECT * FROM admins WHERE username=? AND password=?",
-      [username,password]
+      [username, password]
     )
 
-
-    if(rows.length===0){
-
+    if (rows.length === 0) {
       return res.status(401).json({
-        success:false,
-        message:"Invalid username or password"
+        success: false,
+        message: "Invalid username or password"
       })
-
     }
 
-
     res.json({
-      success:true,
-      admin:{
-        id:rows[0].id,
-        username:rows[0].username
+      success: true,
+      admin: {
+        id: rows[0].id,
+        username: rows[0].username
       }
     })
-
-
-  }catch(err){
-
-    res.status(500).json({
-      error:err.message
-    })
-
+  } catch (err) {
+    res.status(500).json({ error: err.message })
   }
-
 })
-// IMAGE UPLOAD CONFIG
 
-// const storage = multer.diskStorage({
-
-//   destination:(req,file,cb)=>{
-
-//     cb(null,"uploads/");
-
-//   },
-
-
-//   filename:(req,file,cb)=>{
-
-//     const uniqueName =
-//     Date.now() + "-" + file.originalname;
-
-
-//     cb(null,uniqueName);
-
-//   }
-
-// });
-
-
-// const upload = multer({
-//   storage
-// });
+// ════════ START SERVER ════════
 
 const PORT = process.env.PORT || 4000
 app.listen(PORT, () => {
-  console.log(`Habesha Bites API running on http://localhost:${PORT}`)
+  console.log(`Habesha Bites API running on port ${PORT}`)
 })
-

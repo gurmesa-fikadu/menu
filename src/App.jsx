@@ -534,7 +534,6 @@ import AdminLogin from './admin/AdminLogin.jsx'
 
 import BottomNav from './components/BottomNav.jsx'
 
-// ── API BASE URL (Vercel Env Variable or Render Production Backend) ──
 const API_BASE = import.meta.env.VITE_API_URL || 'https://restaurant-backend-lrk6.onrender.com'
 
 export default function App() {
@@ -552,7 +551,6 @@ export default function App() {
   const [dishes, setDishes] = useState([])
   const [categories, setCategories] = useState([])
 
-  // LOAD DISHES
   const loadDishes = async () => {
     try {
       const res = await fetch(`${API_BASE}/api/dishes`)
@@ -567,7 +565,6 @@ export default function App() {
     loadDishes()
   }, [])
 
-  // LOAD CATEGORIES
   useEffect(() => {
     fetch(`${API_BASE}/api/categories`)
       .then(res => res.json())
@@ -618,7 +615,6 @@ export default function App() {
 
   const cartCount = cart.reduce((sum, item) => sum + item.qty, 0)
 
-  // Extract active route for BottomNav
   const getActiveTab = () => {
     const path = location.pathname
     if (path === '/') return 'home'
@@ -629,53 +625,15 @@ export default function App() {
     return 'home'
   }
 
+  const isCustomerRoute = !location.pathname.startsWith('/admin')
+
   return (
     <div className="app-container">
-      <Routes>
-        {/* HOME ROUTE */}
-        <Route
-          path="/"
-          element={
-            <HomeScreen
-              dishes={dishes}
-              categories={categories}
-              onViewDish={viewDish}
-              onAddToCart={addToCart}
-              onNavigate={handleNavigate}
-              activeScreen={getActiveTab()}
-              cartCount={cartCount}
-              onAdmin={() => navigate('/admin')}
-            />
-          }
-        />
-
-        {/* MENU ROUTE */}
-        <Route
-          path="/menu"
-          element={
-            <MenuScreen
-              dishes={dishes}
-              categories={categories}
-              onViewDish={viewDish}
-              onAddToCart={addToCart}
-              onNavigate={handleNavigate}
-              activeScreen={getActiveTab()}
-              cartCount={cartCount}
-            />
-          }
-        />
-
-        {/* DISH DETAIL ROUTE */}
-        <Route
-          path="/detail"
-          element={
-            selectedDish ? (
-              <DishDetailScreen
-                dish={selectedDish}
-                onBack={() => navigate(-1)}
-                onAddToCart={addToCart}
-              />
-            ) : (
+      <main className="app-content">
+        <Routes>
+          <Route
+            path="/"
+            element={
               <HomeScreen
                 dishes={dishes}
                 categories={categories}
@@ -686,100 +644,139 @@ export default function App() {
                 cartCount={cartCount}
                 onAdmin={() => navigate('/admin')}
               />
-            )
-          }
-        />
+            }
+          />
 
-        {/* CART ROUTE */}
-        <Route
-          path="/cart"
-          element={
-            <CartScreen
-              cartItems={cart}
-              setCartItems={setCart}
-              onBack={() => navigate(-1)}
-              onCheckout={() => navigate('/checkout')}
-            />
-          }
-        />
-
-        {/* CHECKOUT ROUTE */}
-        <Route
-          path="/checkout"
-          element={
-            <CheckoutScreen
-              cartItems={cart}
-              onBack={() => navigate(-1)}
-              onPlaceOrder={() => {}}
-            />
-          }
-        />
-
-        {/* PROFILE ROUTE */}
-        <Route
-          path="/profile"
-          element={
-            <div className="profile-screen">
-              <div className="profile-header">
-                <div className="profile-avatar">
-                  <img
-                    src="https://images.pexels.com/photos/1239291/pexels-photo-1239291.jpeg?auto=compress&cs=tinysrgb&w=300"
-                    alt="profile"
-                  />
-                </div>
-                <h2>Welcome</h2>
-              </div>
-              <div className="profile-card">
-                <button
-                  className="profile-item"
-                  onClick={() => navigate('/admin')}
-                >
-                  <div>
-                    <h4>Admin Panel</h4>
-                    <p>Restaurant management</p>
-                  </div>
-                </button>
-              </div>
-              <BottomNav
-                activeScreen={getActiveTab()}
+          <Route
+            path="/menu"
+            element={
+              <MenuScreen
+                dishes={dishes}
+                categories={categories}
+                onViewDish={viewDish}
+                onAddToCart={addToCart}
                 onNavigate={handleNavigate}
+                activeScreen={getActiveTab()}
                 cartCount={cartCount}
               />
-            </div>
-          }
-        />
+            }
+          />
 
-        {/* ADMIN ROUTE */}
-        <Route
-          path="/admin"
-          element={
-            !adminLogged ? (
-              <AdminLogin
-                onLogin={() => {
-                  setAdminLogged(true)
-                  navigate('/admin')
-                }}
+          <Route
+            path="/detail"
+            element={
+              selectedDish ? (
+                <DishDetailScreen
+                  dish={selectedDish}
+                  onBack={() => navigate(-1)}
+                  onAddToCart={addToCart}
+                />
+              ) : (
+                <HomeScreen
+                  dishes={dishes}
+                  categories={categories}
+                  onViewDish={viewDish}
+                  onAddToCart={addToCart}
+                  onNavigate={handleNavigate}
+                  activeScreen={getActiveTab()}
+                  cartCount={cartCount}
+                  onAdmin={() => navigate('/admin')}
+                />
+              )
+            }
+          />
+
+          <Route
+            path="/cart"
+            element={
+              <CartScreen
+                cartItems={cart}
+                setCartItems={setCart}
+                onBack={() => navigate(-1)}
+                onCheckout={() => navigate('/checkout')}
               />
-            ) : (
-              <AdminLayout
-                connected={true}
-                activePage={adminPage}
-                onNavigate={(page) => setAdminPage(page)}
-                onExit={() => {
-                  localStorage.removeItem("admin")
-                  setAdminLogged(false)
-                  navigate('/')
-                }}
-              >
-                {adminPage === 'dashboard' && <AdminDashboard />}
-                {adminPage === "menu" && (
-                  <MenuManager refreshDishes={loadDishes} />
-                )}
-              </AdminLayout>
-            )
-          }
+            }
+          />
+
+          <Route
+            path="/checkout"
+            element={
+              <CheckoutScreen
+                cartItems={cart}
+                onBack={() => navigate(-1)}
+                onPlaceOrder={() => {}}
+              />
+            }
+          />
+
+          <Route
+            path="/profile"
+            element={
+              <div className="profile-screen">
+                <div className="profile-header">
+                  <div className="profile-avatar">
+                    <img
+                      src="https://images.pexels.com/photos/1239291/pexels-photo-1239291.jpeg?auto=compress&cs=tinysrgb&w=300"
+                      alt="profile"
+                    />
+                  </div>
+                  <h2>Welcome</h2>
+                </div>
+                <div className="profile-card">
+                  <button
+                    className="profile-item"
+                    onClick={() => navigate('/admin')}
+                  >
+                    <div>
+                      <h4>Admin Panel</h4>
+                      <p>Restaurant management</p>
+                    </div>
+                  </button>
+                </div>
+              </div>
+            }
+          />
+
+          <Route
+            path="/admin"
+            element={
+              !adminLogged ? (
+                <AdminLogin
+                  onLogin={() => {
+                    setAdminLogged(true)
+                    navigate('/admin')
+                  }}
+                />
+              ) : (
+                <AdminLayout
+                  connected={true}
+                  activePage={adminPage}
+                  onNavigate={(page) => setAdminPage(page)}
+                  onExit={() => {
+                    localStorage.removeItem("admin")
+                    setAdminLogged(false)
+                    navigate('/')
+                  }}
+                >
+                  {adminPage === 'dashboard' && <AdminDashboard />}
+                  {adminPage === "menu" && (
+                    <MenuManager refreshDishes={loadDishes} />
+                  )}
+                </AdminLayout>
+              )
+            }
+          />
+        </Routes>
+      </main>
+
+      {/* Renders BottomNav cleanly on customer pages */}
+      {isCustomerRoute && (
+        <BottomNav
+          activeScreen={getActiveTab()}
+          onNavigate={handleNavigate}
+          cartCount={cartCount}
         />
-      </Routes>
+      )}
     </div>
   )
 }

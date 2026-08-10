@@ -1,5 +1,5 @@
 // ═══════════════════════════════════════════════════════
-// Habesha Bites — Express server
+// Habesha Bites — Express server (with Cloudinary Storage)
 // ═══════════════════════════════════════════════════════
 
 const express = require('express')
@@ -7,13 +7,22 @@ const cors = require('cors')
 const pool = require('./db')
 const multer = require("multer")
 const path = require("path")
+const cloudinary = require("cloudinary").v2
+const { CloudinaryStorage } = require("multer-storage-cloudinary")
 
-const storage = multer.diskStorage({
-  destination: (req, file, cb) => {
-    cb(null, "uploads/")
-  },
-  filename: (req, file, cb) => {
-    cb(null, Date.now() + "-" + file.originalname)
+// ── 1. Configure Cloudinary ──
+cloudinary.config({
+  cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+  api_key: process.env.CLOUDINARY_API_KEY,
+  api_secret: process.env.CLOUDINARY_API_SECRET
+})
+
+// ── 2. Configure Multer to upload directly to Cloudinary ──
+const storage = new CloudinaryStorage({
+  cloudinary: cloudinary,
+  params: {
+    folder: "habesha_bites_dishes",
+    allowed_formats: ["jpg", "jpeg", "png", "webp"]
   }
 })
 
@@ -22,7 +31,6 @@ const upload = multer({ storage })
 const app = express()
 app.use(cors())
 app.use(express.json())
-app.use("/uploads", express.static(path.join(__dirname, "uploads")))
 
 // ── Helper: map DB row → dish shape the frontend expects ──
 function mapDish(row, req) {
@@ -141,7 +149,8 @@ app.post("/api/dishes", upload.single("image"), async (req, res) => {
       available
     } = req.body;
 
-    const image_url = req.file ? "/uploads/" + req.file.filename : null;
+    // req.file.path contains the secure, permanent HTTPS URL from Cloudinary
+    const image_url = req.file ? req.file.path : null;
 
     const [result] = await pool.query(
       `INSERT INTO dishes (category_id, name, description, price, \`portion\`, image_url, gallery, rating, prep_time_minutes, restaurant, available)

@@ -17,7 +17,7 @@ cloudinary.config({
   api_secret: process.env.CLOUDINARY_API_SECRET
 })
 
-// ── 2. Configure Multer to upload directly to Cloudinary ──
+// ── 2. Configure Multer with Limits & Cloudinary Storage ──
 const storage = new CloudinaryStorage({
   cloudinary: cloudinary,
   params: {
@@ -26,7 +26,10 @@ const storage = new CloudinaryStorage({
   }
 })
 
-const upload = multer({ storage })
+const upload = multer({ 
+  storage,
+  limits: { fileSize: 10 * 1024 * 1024 } // 10MB file limit safeguard
+})
 
 const app = express()
 app.use(cors())
@@ -135,44 +138,53 @@ app.get('/api/dishes/:id', async (req, res) => {
   }
 })
 
-app.post("/api/dishes", upload.single("image"), async (req, res) => {
-  try {
-    const {
-      name,
-      category_id,
-      description,
-      price,
-      portion,
-      rating,
-      prep_time_minutes,
-      restaurant,
-      available
-    } = req.body;
+// SAFE POST ROUTE WITH ERROR HANDLING AND SAFE RETURN
+app.post("/api/dishes", (req, res) => {
+  upload.single("image")(req, res, async (err) => {
+    if (err) {
+      console.error("Cloudinary Upload Error:", err)
+      return res.status(500).json({ error: "Image upload failed: " + err.message })
+    }
 
-    // req.file.path contains the secure, permanent HTTPS URL from Cloudinary
-    const image_url = req.file ? req.file.path : null;
-
-    const [result] = await pool.query(
-      `INSERT INTO dishes (category_id, name, description, price, \`portion\`, image_url, gallery, rating, prep_time_minutes, restaurant, available)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-      [
-        category_id || null,
+    try {
+      const {
         name,
-        description || "",
-        Number(price),
-        portion || "",
-        image_url,
-        JSON.stringify([]),
-        Number(rating || 0),
-        Number(prep_time_minutes || 0),
-        restaurant || "Habesha Bites Kitchen",
-        available ? 1 : 0
-      ]
-    );
-    res.status(201).json({ id: result.insertId, message: 'Dish added' })
-  } catch (err) {
-    res.status(500).json({ error: err.message })
-  }
+        category_id,
+        description,
+        price,
+        portion,
+        rating,
+        prep_time_minutes,
+        restaurant,
+        available
+      } = req.body
+
+      const image_url = req.file ? req.file.path : null
+
+      const [result] = await pool.query(
+        `INSERT INTO dishes (category_id, name, description, price, \`portion\`, image_url, gallery, rating, prep_time_minutes, restaurant, available)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        [
+          category_id || null,
+          name,
+          description || "",
+          Number(price),
+          portion || "",
+          image_url,
+          JSON.stringify([]),
+          Number(rating || 0),
+          Number(prep_time_minutes || 0),
+          restaurant || "Habesha Bites Kitchen",
+          available ? 1 : 0
+        ]
+      )
+
+      return res.status(201).json({ id: result.insertId, message: 'Dish added successfully' })
+    } catch (dbErr) {
+      console.error("Database Error:", dbErr)
+      return res.status(500).json({ error: dbErr.message })
+    }
+  })
 })
 
 app.put('/api/dishes/:id', async (req, res) => {

@@ -1,146 +1,104 @@
-import React, { useState } from "react";
+import React, { useState, useRef, useEffect } from "react";
+import ReactDOM from "react-dom";
 import { useLanguage } from "../i18n/LanguageContext.jsx";
 import "./LanguageSwitcher.css";
 
-
-export default function LanguageSwitcher(){
-
-  const {
-    language,
-    changeLanguage
-  } = useLanguage();
-
-
-  const [open,setOpen] = useState(false);
-
-
+export default function LanguageSwitcher() {
+  const { language, changeLanguage } = useLanguage();
+  const [open, setOpen] = useState(false);
+  const [coords, setCoords] = useState({ top: 0, right: 0 });
+  const buttonRef = useRef(null);
 
   const languages = [
-
     {
-      code:"en",
-      label:"English",
-      flag:"🇬🇧"
+      code: "en",
+      label: "English",
+      flag: "🇬🇧"
     },
-
     {
-      code:"am",
-      label:"አማርኛ",
-      flag:"🇪🇹"
+      code: "am",
+      label: "አማርኛ",
+      flag: "🇪🇹"
     },
-
     {
-      code:"om",
-      label:"Afaan Oromo",
-      flag:"🌿"
+      code: "om",
+      label: "Afaan Oromo",
+      flag: "🌿"
     }
-
   ];
 
-
-
   const current =
-  languages.find(
-    lang => lang.code === language
-  ) || languages[0];
+    languages.find((lang) => lang.code === language) || languages[0];
 
+  const toggleDropdown = () => {
+    if (!open && buttonRef.current) {
+      const rect = buttonRef.current.getBoundingClientRect();
+      setCoords({
+        top: rect.bottom + window.scrollY + 8,
+        right: window.innerWidth - rect.right
+      });
+    }
+    setOpen(!open);
+  };
 
+  useEffect(() => {
+    const handleScrollOrResize = () => {
+      if (open && buttonRef.current) {
+        const rect = buttonRef.current.getBoundingClientRect();
+        setCoords({
+          top: rect.bottom + window.scrollY + 8,
+          right: window.innerWidth - rect.right
+        });
+      }
+    };
+
+    window.addEventListener("scroll", handleScrollOrResize, true);
+    window.addEventListener("resize", handleScrollOrResize);
+
+    return () => {
+      window.removeEventListener("scroll", handleScrollOrResize, true);
+      window.removeEventListener("resize", handleScrollOrResize);
+    };
+  }, [open]);
 
   return (
-
     <div className="language-switcher">
-
-
       <button
-
+        ref={buttonRef}
         className="language-switcher__button"
-
-        onClick={()=>{
-          setOpen(!open)
-        }}
-
+        onClick={toggleDropdown}
       >
-
         {current.flag}
-
-        <span>
-          {current.label}
-        </span>
-
-
-        <span className="arrow">
-          ▼
-        </span>
-
-
+        <span>{current.label}</span>
+        <span className="arrow">▼</span>
       </button>
 
-
-
-
-      {
-        open && (
-
-          <div className="language-switcher__menu">
-
-
-            {
-              languages.map((lang)=>(
-
-                <button
-
-                  key={lang.code}
-
-                  className={
-                    language === lang.code
-                    ?
-                    "active"
-                    :
-                    ""
-                  }
-
-
-                  onClick={()=>{
-
-
-                    changeLanguage(
-                      lang.code
-                    );
-
-
-                    setOpen(false);
-
-
-                  }}
-
-                >
-
-                  <span>
-                    {lang.flag}
-                  </span>
-
-
-                  <span>
-                    {lang.label}
-                  </span>
-
-
-                </button>
-
-
-              ))
-
-            }
-
-
-          </div>
-
-        )
-      }
-
-
+      {open &&
+        ReactDOM.createPortal(
+          <div
+            className="language-switcher__menu"
+            style={{
+              position: "absolute",
+              top: `${coords.top}px`,
+              right: `${coords.right}px`
+            }}
+          >
+            {languages.map((lang) => (
+              <button
+                key={lang.code}
+                className={language === lang.code ? "active" : ""}
+                onClick={() => {
+                  changeLanguage(lang.code);
+                  setOpen(false);
+                }}
+              >
+                <span>{lang.flag}</span>
+                <span>{lang.label}</span>
+              </button>
+            ))}
+          </div>,
+          document.body
+        )}
     </div>
-
-  )
-
+  );
 }

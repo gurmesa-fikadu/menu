@@ -302,7 +302,7 @@
 
 // }
 
-import React from 'react'
+import React, { useState, useEffect } from 'react'
 import './BottomNav.css'
 import { useLanguage } from '../i18n/LanguageContext.jsx'
 
@@ -312,6 +312,22 @@ export default function BottomNav({
   cartCount
 }) {
   const { t } = useLanguage()
+  const [showSavedModal, setShowSavedModal] = useState(false)
+  const [savedDishes, setSavedDishes] = useState([])
+
+  // Load saved items from localStorage when modal opens
+  useEffect(() => {
+    if (showSavedModal) {
+      const stored = JSON.parse(localStorage.getItem('favoriteDishes') || '[]')
+      setSavedDishes(stored)
+    }
+  }, [showSavedModal])
+
+  const removeSavedItem = (id) => {
+    const updated = savedDishes.filter((dish) => dish.id !== id)
+    setSavedDishes(updated)
+    localStorage.setItem('favoriteDishes', JSON.stringify(updated))
+  }
 
   const tabs = [
     {
@@ -342,33 +358,84 @@ export default function BottomNav({
     }
   ]
 
-  return (
-    <nav className="bottom-nav">
-      <div className="bottom-nav__inner">
-        {tabs.map((tab) => {
-          const Icon = tab.icon
-          const active = activeScreen === tab.id
+  const handleTabClick = (tabId) => {
+    if (tabId === 'favorites') {
+      setShowSavedModal(true)
+    } else {
+      onNavigate(tabId)
+    }
+  }
 
-          return (
-            <button
-              key={tab.id}
-              className={`bottom-nav__tab ${
-                active ? 'bottom-nav__tab--active' : ''
-              }`}
-              onClick={() => onNavigate(tab.id)}
-            >
-              <span className="bottom-nav__icon-wrap">
-                <Icon />
-                {tab.badge > 0 && (
-                  <span className="bottom-nav__badge">{tab.badge}</span>
-                )}
-              </span>
-              <span className="bottom-nav__label">{tab.label}</span>
-            </button>
-          )
-        })}
-      </div>
-    </nav>
+  return (
+    <>
+      <nav className="bottom-nav">
+        <div className="bottom-nav__inner">
+          {tabs.map((tab) => {
+            const Icon = tab.icon
+            const active = activeScreen === tab.id
+
+            return (
+              <button
+                key={tab.id}
+                className={`bottom-nav__tab ${
+                  active ? 'bottom-nav__tab--active' : ''
+                }`}
+                onClick={() => handleTabClick(tab.id)}
+              >
+                <span className="bottom-nav__icon-wrap">
+                  <Icon />
+                  {tab.badge > 0 && (
+                    <span className="bottom-nav__badge">{tab.badge}</span>
+                  )}
+                </span>
+                <span className="bottom-nav__label">{tab.label}</span>
+              </button>
+            )
+          })}
+        </div>
+      </nav>
+
+      {/* Saved / Favorites Modal Overlay */}
+      {showSavedModal && (
+        <div className="saved-modal-overlay" onClick={() => setShowSavedModal(false)}>
+          <div className="saved-modal-content" onClick={(e) => e.stopPropagation()}>
+            <div className="saved-modal-header">
+              <h2>❤️ {t('saved') || 'Saved Items'}</h2>
+              <button className="saved-close-btn" onClick={() => setShowSavedModal(false)}>
+                ✕
+              </button>
+            </div>
+
+            <div className="saved-modal-body">
+              {savedDishes.length === 0 ? (
+                <div className="saved-empty-state">
+                  <p>No saved dishes yet.</p>
+                  <span>Tap heart icons on menu items to save them here!</span>
+                </div>
+              ) : (
+                <div className="saved-list">
+                  {savedDishes.map((dish) => (
+                    <div key={dish.id} className="saved-item-card">
+                      {dish.image && <img src={dish.image} alt={dish.name} />}
+                      <div className="saved-item-info">
+                        <h4>{dish.name}</h4>
+                        <p>{dish.price} ETB</p>
+                      </div>
+                      <button
+                        className="saved-remove-btn"
+                        onClick={() => removeSavedItem(dish.id)}
+                      >
+                        🗑
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+    </>
   )
 }
 
